@@ -1,6 +1,7 @@
 from pathlib import Path
 
 
+# dirs
 ROOT_DIR = Path(__file__).parent
 
 DATA_DIR = ROOT_DIR / "data"
@@ -16,14 +17,16 @@ RESULTS_DIR = ROOT_DIR / "results"
 FIGS_DIR = RESULTS_DIR / "figures"
 
 
+# data & prep
 DATASET_NAME = "uqa/UQA"
 
 MAX_SOURCE_LENGTH = 60
 MAX_TARGET_LENGTH = 25
 
-
-VOCAB_SIZE = 8000
-
 ANS_OPEN = "<ans>"
 ANS_CLOSE = "</ans>"
 SENT_DELIMS = "\u06D4\u061F!"
+
+
+# tokenizer
+VOCAB_SIZE = 8000
