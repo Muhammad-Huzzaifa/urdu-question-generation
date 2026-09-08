@@ -1,0 +1,7 @@
+datasets
+sentencepiece
+sacrebleu
+rouge-score
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+matplotlib
