@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     spm.SentencePieceTrainer.train(
         input=str(TOKENIZER_DIR / "sp_corpus.txt"),
-        model_prefix=MODEL_PREFIX,
+        model_prefix=str(TOKENIZER_DIR / MODEL_PREFIX),
         vocab_size=VOCAB_SIZE,
         model_type="unigram",
         character_coverage=1.0,
