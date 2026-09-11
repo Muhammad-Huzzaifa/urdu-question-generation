@@ -53,7 +53,7 @@ def make_pair(example, max_src=MAX_SOURCE_LENGTH, max_tgt=MAX_TARGET_LENGTH):
             
             src = (sent[:rel] + " " + ANS_OPEN + " " + a_text + " " + ANS_CLOSE + " " + sent[rel + len(a_text) :]).strip()
             src = " ".join(src.split())
-            tgt = " ".join(example["question"].split())
+            tgt = SOS_TOKEN + " " + " ".join(example["question"].split()) + " " + EOS_TOKEN
 
             if len(src.split()) > max_src or len(tgt.split()) > max_tgt:
                 return None

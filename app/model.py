@@ -224,7 +224,6 @@ class Seq2Seq(nn.Module):
                         new_beams.append((score, tokens, h_att_prev, h_prev, c_prev, finished))
                         continue
 
-
                     y_prev_token = torch.tensor([tokens[-1]], device=self.device)
                     embedded_y_prev = self.embedding(y_prev_token)
                     logits, h_att, h, c = self.decoder(embedded_y_prev, h_att_prev, h_prev, c_prev, enc_hiddens_b, mask_b)
