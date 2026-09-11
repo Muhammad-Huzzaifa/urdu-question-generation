@@ -1,7 +1,5 @@
 from pathlib import Path
-
 import torch
-
 
 # dirs
 ROOT_DIR = Path(__file__).parent
@@ -20,7 +18,6 @@ BEST_MODEL = CHECKPOINT_DIR / "best_model.pt"
 RESULTS_DIR = ROOT_DIR / "results"
 FIGS_DIR = RESULTS_DIR / "figures"
 
-
 # data & prep
 DATASET_NAME = "uqa/UQA"
 
@@ -31,7 +28,6 @@ ANS_OPEN = "<ans>"
 ANS_CLOSE = "</ans>"
 SENT_DELIMS = "\u06D4\u061F!"
 
-
 # model
 EMBEDDING_DIM = 256
 HIDDEN_DIM = 512
@@ -39,6 +35,10 @@ NUM_LAYERS = 2
 DROPOUT = 0.3
 TEACHER_FORCING_RATIO = 0.5
 
+# training
+BATCH_SIZE = 64
+LEARNING_RATE = 0.001
+NUM_EPOCHS = 10
 
 # tokenizer
 VOCAB_SIZE = 8000
@@ -50,5 +50,4 @@ EOS_IDX = 3
 
 
 # device
-import torch
-device = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
