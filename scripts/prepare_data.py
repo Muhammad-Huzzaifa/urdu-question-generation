@@ -53,7 +53,7 @@ def make_pair(example, max_src=MAX_SOURCE_LENGTH, max_tgt=MAX_TARGET_LENGTH):
             
             src = (sent[:rel] + " " + ANS_OPEN + " " + a_text + " " + ANS_CLOSE + " " + sent[rel + len(a_text) :]).strip()
             src = " ".join(src.split())
-            tgt = SOS_TOKEN + " " + " ".join(example["question"].split()) + " " + EOS_TOKEN
+            tgt = " ".join(example["question"].split())
 
             if len(src.split()) > max_src or len(tgt.split()) > max_tgt:
                 return None
@@ -82,51 +82,76 @@ def build_split(split, out_path):
 
 if __name__ == "__main__":
     ds = load_dataset(DATASET_NAME)
-    print(ds)
-
-    ex = ds["train"][0]
-    print(ex.keys())
-    print(ex["question"])
-    print(ex["answer"])
-
-    n_total = len(ds["train"])
-    n_ans = n_total - sum(ds["train"]["is_impossible"])
-    print (f"train rows: {n_total}, answerable: {n_ans}")
+    wiki = load_dataset(WIKI_DATA_NAME)
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     train_pairs = build_split(ds["train"], TRAIN_DATA)
     valid_pairs = build_split(ds["validation"], VALID_DATA)
+    wiki_pairs = build_split(wiki["train"], WIKI_DATA)
+
+    def mean_len(pairs, idx):
+        """calculate the mean length of src / target pairs selected by idx
+
+        Args:
+            pairs (list): list of pairs containing src and tgt sentences
+            idx (int): idx for choosing src (0) or the target (1)
+
+        Returns:
+            float: mean length of source / target sentences
+        """
+        return sum(len(p[idx].split()) for p in pairs) / len(pairs)
+
+    rows = [
+        (
+            "Rows in raw dataset", 
+            len(ds["train"]), len(ds["validation"]), len(wiki["train"])
+        ),
+        (
+            "Answerable rows", 
+            len(ds["train"]) - sum(ds["train"]["is_impossible"]), 
+            len(ds["validation"]) - sum(ds["validation"]["is_impossible"]),
+            len(wiki["train"]) - sum(wiki["train"]["is_impossible"])
+        ),
+        (
+            "Pairs after length filter", 
+            len(train_pairs), len(valid_pairs), len(wiki_pairs)),
+        (
+            "Mean source / target length",
+            f"{mean_len(train_pairs, 0):.1f} / {mean_len(train_pairs, 1):.1f}",
+            f"{mean_len(valid_pairs, 0):.1f} / {mean_len(valid_pairs, 1):.1f}",
+            f"{mean_len(wiki_pairs, 0):.1f} / {mean_len(wiki_pairs, 1):.1f}",
+        ),
+    ]
     
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    with open(RESULTS_DIR / "data_counts.txt", "w", encoding="utf-8") as f:
-        f.write(f"train: \n\ttotal: {len(ds['train'])} \n\tanswerable: {len(ds['train']) - sum(ds['train']['is_impossible'])} \n\tselected: {len(train_pairs)}\n")
-        f.write(f"validation: \n\ttotal: {len(ds['validation'])} \n\tanswerable: {len(ds['validation']) - sum(ds['validation']['is_impossible'])} \n\tselected: {len(valid_pairs)}\n")
+    with open(RESULTS_DIR / "dataset_statistics.md", "w", encoding="utf-8") as f:
+        f.write("| | Train | Validation | Wiki-UQA |\n")
+        f.write("|---|---|---|---|\n")
+        for label, train_val, valid_val, wiki_val in rows:
+            f.write(f"| {label} | {train_val} | {valid_val} | {wiki_val} |\n")
 
     FIGS_DIR.mkdir(parents=True, exist_ok=True)
-    plt.figure()
-    plt.hist([len(src.split()) for src, _ in train_pairs], bins=30, label="train source")
-    plt.title("distribution of source lengths in train")
-    plt.xlabel("number of words")
-    plt.ylabel("count")
-    plt.savefig(FIGS_DIR / "train_source_lengths.png")
+    datasets = [
+        ("train", train_pairs),
+        ("valid", valid_pairs),
+        ("wiki", wiki_pairs),
+    ]
 
-    plt.figure()
-    plt.hist([len(tgt.split()) for _, tgt in train_pairs], bins=30, label="train target")
-    plt.title("distribution of target lengths in train")
-    plt.xlabel("number of words")
-    plt.ylabel("count")
-    plt.savefig(FIGS_DIR / "train_target_lengths.png")
+    fig, axes = plt.subplots(len(datasets), 2, figsize=(10, 4 * len(datasets)))
 
-    plt.figure()
-    plt.hist([len(src.split()) for src, _ in valid_pairs], bins=30, label="valid source")
-    plt.title("distribution of source lengths in valid")
-    plt.xlabel("number of words")
-    plt.ylabel("count")
-    plt.savefig(FIGS_DIR / "valid_source_lengths.png")
+    for row, (name, pairs) in enumerate(datasets):
+        src_lens = [len(src.split()) for src, _ in pairs]
+        tgt_lens = [len(tgt.split()) for _, tgt in pairs]
 
-    plt.figure()
-    plt.hist([len(tgt.split()) for _, tgt in valid_pairs], bins=30, label="valid target")
-    plt.title("distribution of target lengths in valid")
-    plt.xlabel("number of words")
-    plt.ylabel("count")
-    plt.savefig(FIGS_DIR / "valid_target_lengths.png")
+        axes[row, 0].hist(src_lens, bins=30)
+        axes[row, 0].set_title(f"distribution of source lengths in {name}")
+        axes[row, 0].set_xlabel("number of words")
+        axes[row, 0].set_ylabel("count")
+
+        axes[row, 1].hist(tgt_lens, bins=30)
+        axes[row, 1].set_title(f"distribution of target lengths in {name}")
+        axes[row, 1].set_xlabel("number of words")
+        axes[row, 1].set_ylabel("count")
+
+    fig.tight_layout()
+    fig.savefig(FIGS_DIR / "length_histograms.png")

@@ -35,39 +35,44 @@ class Encoder(nn.Module):
             lengths (tensor): a tensor of shape (batch_size,) containing the actual lengths of the sequences in the batch
 
         Returns:
-            tuple: a tuple containing the projected sequence hidden states of shape (s_seq_len, batch_size, hidden_size), final projected hidden and cell states of shape (num_layers, batch, hidden_size)
+            tuple: a tuple containing the sequence hidden states of shape (s_seq_len, batch_size, 2 * hidden_size), final projected hidden and cell states of shape (num_layers, batch, hidden_size)
         """
+        x_len = x.size(0)
         x = pack_padded_sequence(x, lengths.cpu(), enforce_sorted=False)
         packed_outputs, (hidden, cell) = self.lstm(x)
-        outputs, _ = pad_packed_sequence(packed_outputs)
+        outputs, _ = pad_packed_sequence(packed_outputs, total_length=x_len)
 
-        return self.hidden(outputs), self.hidden(torch.cat((hidden[::2], hidden[1::2]), dim=2)), self.cell(torch.cat((cell[::2], cell[1::2]), dim=2))
+        return outputs, self.hidden(torch.cat((hidden[::2], hidden[1::2]), dim=2)), self.cell(torch.cat((cell[::2], cell[1::2]), dim=2))
 
 
 class LuongAttention(nn.Module):
 
-    def __init__(self):
-        """initializer of luong's global attention with dot score
-        """
-        super().__init__()
-
-    def forward(self, enc_hiddens, dec_hidden, mask):
-        """computing the context vector according to luong's global attention with dot score
+    def __init__(self, hidden_size):
+        """initializer of luong's global attention with general scoring
 
         Args:
-            enc_hiddens (tensor): encoder hidden states of shape (s_seq_len, batch_size, hidden_size)
+            hidden_size (int): size of the hidden state
+        """
+        super().__init__()
+        self.attentionW = nn.Linear(2 * hidden_size, hidden_size)
+
+    def forward(self, enc_hiddens, dec_hidden, mask):
+        """computing the context vector according to luong's global attention with general scoring
+
+        Args:
+            enc_hiddens (tensor): encoder hidden states of shape (s_seq_len, batch_size, 2 * hidden_size)
             dec_hidden (tensor): decoder hidden state of shape (batch_size, hidden_size)
             mask (tensor): a tensor of shape (batch_size, s_seq_len) containing 1s for valid positions and 0s for padded positions
             
         Returns:
-            tensor: context vector of shape (batch_size, hidden_size)
+            tensor: context vector of shape (batch_size, 2 * hidden_size) and attention weights of shape (batch_size, s_seq_len)
         """
-        scores = enc_hiddens.transpose(0, 1) @ dec_hidden.unsqueeze(2)
+        scores = self.attentionW(enc_hiddens).transpose(0, 1) @ dec_hidden.unsqueeze(2)
         scores = scores.masked_fill(mask.unsqueeze(2) == 0, float("-inf"))
         attn_weights = F.softmax(scores, dim=1)
         context = attn_weights.transpose(1, 2) @ enc_hiddens.transpose(0, 1)
 
-        return context.squeeze(1)
+        return context.squeeze(1), attn_weights.squeeze(2)
     
 
 class Decoder(nn.Module):
@@ -86,37 +91,36 @@ class Decoder(nn.Module):
         super().__init__()
 
         self.lstm = nn.LSTM(
-            input_size=input_size + hidden_size,
+            input_size=input_size,
             hidden_size=hidden_size,
             num_layers=num_layers,
             dropout=dropout,
         )
         self.attention = attention
-        self.h_att_layer = nn.Linear(2 * hidden_size, hidden_size)
+        self.h_att_layer = nn.Linear(3 * hidden_size, hidden_size)
         self.out_layer = nn.Linear(hidden_size, vocab_size)
 
-    def forward(self, y_prev, h_att_prev, h_prev, c_prev, encoder_hiddens, mask):
+    def forward(self, y_prev, h_prev, c_prev, encoder_hiddens, mask):
         """forward pass of the decoder with attention
 
         Args:
             y_prev (tensor): previous embedded output of the decoder of shape (batch_size, embedding_dim)
-            h_att_prev (tensor): previous attention-hidden state of shape (batch_size, hidden_size)
             h_prev (tensor): previous hidden state of the lstm of shape (num_layers, batch_size, hidden_size)
             c_prev (tensor): previous cell state of the lstm of shape (num_layers, batch_size, hidden_size)
-            encoder_hiddens (tensor): encoder hidden states of shape (s_seq_len, batch_size, hidden_size)
+            encoder_hiddens (tensor): encoder hidden states of shape (s_seq_len, batch_size, 2 * hidden_size)
             mask (tensor): a tensor of shape (batch_size, s_seq_len) containing 1s for valid positions and 0s for padded positions
 
         Returns:
-            tuple: a tuple containing the logit output of shape (batch_size, vocab_size), attention-hidden state of shape (batch_size, hidden_size), hidden state of shape (num_layers, batch_size, hidden_size), and cell state of shape (num_layers, batch_size, hidden_size)
+            tuple: a tuple containing the logit output of shape (batch_size, vocab_size), hidden state of shape (num_layers, batch_size, hidden_size), cell state of shape (num_layers, batch_size, hidden_size), and attentions weights of shape (batch_size, s_seq_len)
         """
-        x = torch.cat((y_prev, h_att_prev), dim=1).unsqueeze(0)
+        x = y_prev.unsqueeze(0)
         output, (hidden, cell) = self.lstm(x, (h_prev, c_prev))
 
-        context = self.attention(encoder_hiddens, output.squeeze(0), mask)
+        context, attn_weights = self.attention(encoder_hiddens, output.squeeze(0), mask)
         h_att = F.tanh(self.h_att_layer(torch.cat((context, output.squeeze(0)), dim=1)))
         logits = self.out_layer(h_att)
 
-        return logits, h_att, hidden, cell
+        return logits, hidden, cell, attn_weights
 
 
 class Seq2Seq(nn.Module):
@@ -138,10 +142,9 @@ class Seq2Seq(nn.Module):
         super().__init__()
 
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=pad_idx)
-        self.attention = LuongAttention()
+        self.attention = LuongAttention(hidden_dim)
         self.encoder = Encoder(embedding_dim, hidden_dim, num_layers, dropout)
         self.decoder = Decoder(self.attention, vocab_size, embedding_dim, hidden_dim, num_layers, dropout)
-        self.dropout = nn.Dropout(dropout)
         self.device = device
         self.pad_idx = pad_idx
         self.sos_idx = sos_idx
@@ -159,18 +162,17 @@ class Seq2Seq(nn.Module):
         Returns:
             tuple: a tuple containing the output logits of shape (t_seq_len - 1, batch_size, vocab_size)
         """
-        embedded_x = self.dropout(self.embedding(x))
+        embedded_x = self.embedding(x)
         encoder_hiddens, hidden, cell = self.encoder(embedded_x, lengths)
 
         outputs = torch.zeros((y.size(0) - 1, y.size(1), self.decoder.out_layer.out_features), device=self.device)
 
         mask = (x != self.pad_idx).transpose(0, 1)
         y_prev_token = y[0]
-        h_att = torch.zeros((x.size(1), hidden.size(2)), device=self.device)
 
         for t in range(1, y.size(0)):
-            embedded_y_prev = self.dropout(self.embedding(y_prev_token))
-            logits, h_att, hidden, cell = self.decoder(embedded_y_prev, h_att, hidden, cell, encoder_hiddens, mask)
+            embedded_y_prev = self.embedding(y_prev_token)
+            logits, hidden, cell, _ = self.decoder(embedded_y_prev, hidden, cell, encoder_hiddens, mask)
             outputs[t - 1] = logits
             y_prev_token = y[t] if torch.rand(1) < teacher_forcing_ratio else logits.argmax(1)
 
@@ -187,7 +189,7 @@ class Seq2Seq(nn.Module):
             beam_size (int, optional): number of beams to use for decoding defaults is 1 (greedy)
 
         Returns:
-            list: a list of predicted sequences, each sequence is a list of token indices of shape (batch_size, max_len)
+            list: a list of predicted sequences, each sequence is a list of token indices of shape (batch_size, max_len) and attention matrices of shape (batch_size, max_len, s_seq_len)
         """
         self.eval()
 
@@ -197,36 +199,51 @@ class Seq2Seq(nn.Module):
         mask = (x != self.pad_idx).transpose(0, 1)
 
         results = []
+        attentions = []
+
+        def length_norm_score(item, alpha=0.7):
+            """normalizes the score of a sequence by its length
+
+            Args:
+                item (tuple): a tuple containing the score and the tokens
+                alpha (float, optional): the alpha parameter for length normalization defaults to 0.7
+
+            Returns:
+                float: the normalized score
+            """
+            score, tokens = item[0], item[1]
+            lp = ((5 + len(tokens)) / 6) ** alpha
+            return score / lp
 
         for b in range(x.size(1)):
             enc_hiddens_b = enc_hiddens[:, b : b + 1, :]
-            enc_hidden_b = enc_hidden[:, b : b + 1, :]
-            enc_cell_b = enc_cell[:, b : b + 1, :]
+            enc_hidden_b = enc_hidden[:, b : b + 1, :].contiguous()
+            enc_cell_b = enc_cell[:, b : b + 1, :].contiguous()
             mask_b = mask[b : b + 1, :]
-            h_att_b = torch.zeros((1, enc_hidden.size(2)), device=self.device)
 
             beams = [(
                 0.0,
                 [self.sos_idx],
-                h_att_b,
                 enc_hidden_b,
                 enc_cell_b,
-                False
+                False,
+                []
             )]
 
             for _ in range(max_len):
-                if all(beam[-1] for beam in beams):
+                if all(beam[-2] for beam in beams):
                     break
 
                 new_beams = []
-                for score, tokens, h_att_prev, h_prev, c_prev, finished in beams:
+                for score, tokens, h_prev, c_prev, finished, attn_hist in beams:
                     if finished:
-                        new_beams.append((score, tokens, h_att_prev, h_prev, c_prev, finished))
+                        new_beams.append((score, tokens, h_prev, c_prev, finished, attn_hist))
                         continue
 
                     y_prev_token = torch.tensor([tokens[-1]], device=self.device)
                     embedded_y_prev = self.embedding(y_prev_token)
-                    logits, h_att, h, c = self.decoder(embedded_y_prev, h_att_prev, h_prev, c_prev, enc_hiddens_b, mask_b)
+                    logits, h, c, attn_weights = self.decoder(embedded_y_prev, h_prev, c_prev, enc_hiddens_b, mask_b)
+                    attn_vec = attn_weights.squeeze(0).detach().cpu()
                     logp = F.log_softmax(logits, dim=1).squeeze(0)
                     topk_logp, topk_idxs = logp.topk(beam_size)
 
@@ -234,11 +251,20 @@ class Seq2Seq(nn.Module):
                         new_token = tokens + [idx]
                         new_score = score + logp
                         new_finished = finished or (idx == self.eos_idx)
-                        new_beams.append((new_score, new_token, h_att, h, c, new_finished))
+                        new_attn_hist = attn_hist + [attn_vec]
+                        new_beams.append((new_score, new_token, h, c, new_finished, new_attn_hist))
 
-                beams = sorted(new_beams, key=lambda x: x[0], reverse=True)[:beam_size]
+                beams = sorted(new_beams, key=length_norm_score, reverse=True)[:beam_size]
 
-            best_beam = max(beams, key=lambda x: x[0])
-            results.append(best_beam[1][1:-1] if best_beam[-1] else best_beam[1][1:])
+            best_score, best_tokens, _, _, best_finished, best_attn_hist = max(beams, key=length_norm_score)
+            if best_finished:
+                final_tokens = best_tokens[1:-1]
+                final_attn = best_attn_hist[:-1]
+            else:
+                final_tokens = best_tokens[1:]
+                final_attn = best_attn_hist
+            attn_matrix = torch.stack(final_attn, dim=0) if final_attn else torch.empty(0, enc_hiddens_b.size(0))
+            results.append(final_tokens)
+            attentions.append(attn_matrix)
 
-        return results
+        return results, attentions

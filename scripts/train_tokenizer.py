@@ -42,10 +42,6 @@ if __name__ == "__main__":
     )
 
     sp = spm.SentencePieceProcessor(model_file=str(TOKENIZER_MODEL))
-    src, tgt = train_pairs[0]
-    print(sp.encode(src, out_type=str))
-    print(sp.encode(tgt))
-    print(sp.decode(sp.encode(tgt)) == tgt)
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     with open(RESULTS_DIR / "5_tokenizer_results.txt", "w", encoding="utf-8") as f:

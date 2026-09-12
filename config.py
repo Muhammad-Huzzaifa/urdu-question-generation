@@ -9,6 +9,7 @@ ROOT_DIR = Path(__file__).parent
 DATA_DIR = ROOT_DIR / "data"
 TRAIN_DATA = DATA_DIR / "train.tsv"
 VALID_DATA = DATA_DIR / "valid.tsv"
+WIKI_DATA = DATA_DIR / "wiki.tsv"
 
 ARTIFACTS_DIR = ROOT_DIR / "artifacts"
 TOKENIZER_DIR = ARTIFACTS_DIR / "tokenizer"
@@ -23,6 +24,7 @@ FIGS_DIR = RESULTS_DIR / "figures"
 
 # data & prep
 DATASET_NAME = "uqa/UQA"
+WIKI_DATA_NAME = "uqa/Wiki-UQA"
 
 MAX_SOURCE_LENGTH = 60
 MAX_TARGET_LENGTH = 25
@@ -39,9 +41,28 @@ EMBEDDING_DIM = 256
 HIDDEN_DIM = 512
 NUM_LAYERS = 2
 DROPOUT = 0.3
-TEACHER_FORCING_RATIO = 0.5
-LEARNING_RATE = 0.001
-NUM_EPOCHS = 10
+TF_START = 0.9
+TF_END = 0.3
+LEARNING_RATE = 1e-3
+WEIGHT_DECAY = 1e-4
+SCHEDULER_FACTOR = 0.5
+SCHEDULE_PATIENCE = 1
+SCHEDULE_COOLDOWN = 0
+MIN_LR = 1e-6
+CLIP = 5.0
+NUM_EPOCHS = 15
+BEAM_K = 5
+
+def tf_ratio(epoch):
+    """calculate the teacher forcing ratio for a given epoch
+
+    Args:
+        epoch (int): the current epoch
+
+    Returns:
+        float: the teacher forcing ratio for the given epoch
+    """
+    return TF_START + (TF_END - TF_START) * (epoch / NUM_EPOCHS)
 
 
 # tokenizer
