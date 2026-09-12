@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Urdu Question Generation</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <main class="shell">
+        <header>
+            <p class="eyebrow">URDU QUESTION GENERATION</p>
+            <h1>Generate Questions</h1>
+            <p class="intro">Enter an Urdu sentence, highlight the answer, and compare both model outputs.</p>
+        </header>
+
+        <section class="panel">
+            <label for="source">Urdu sentence</label>
+            <textarea id="source" dir="rtl" placeholder="مثال: پاکستان کا دارالحکومت اسلام آباد ہے۔"></textarea>
+            <div class="actions">
+                <button id="mark" class="secondary" type="button">Mark selected answer</button>
+                <button id="generate" class="primary" type="button">Generate questions</button>
+            </div>
+            <p id="status" class="status" role="status"></p>
+        </section>
+
+        <section class="results" aria-live="polite">
+            <article class="result-card accent-red">
+                <div class="result-heading"><span>GREEDY</span><small>beam = 1</small></div>
+                <p id="greedy" dir="rtl">نتیجہ یہاں دکھائی دے گا</p>
+            </article>
+            <article class="result-card accent-green">
+                <div class="result-heading"><span>BEAM SEARCH</span><small>k = 5</small></div>
+                <p id="beam" dir="rtl">نتیجہ یہاں دکھائی دے گا</p>
+            </article>
+        </section>
+    </main>
+    <script src="/static/app.js"></script>
+</body>
+
+</html>

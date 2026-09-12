@@ -6,3 +6,5 @@ rouge-score
 torch
 matplotlib
 tqdm
+fastapi
+uvicorn

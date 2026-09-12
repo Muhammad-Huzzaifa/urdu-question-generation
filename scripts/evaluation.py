@@ -140,8 +140,8 @@ if __name__ == "__main__":
 
     rows = []
 
-    valid_srcs_greedy, valid_refs_greedy, valid_hyps_greedy = decode_split(model, valid_dataloader, sp, beam_size=1)
-    valid_srcs_beam, valid_refs_beam, valid_hyps_beam = decode_split(model, valid_dataloader, sp, beam_size=BEAM_K)
+    valid_srcs_greedy, valid_refs_greedy, valid_hyps_greedy = decode_split(model, valid_dataloader, sp, beam_size=1, max_len=MAX_TARGET_LENGTH)
+    valid_srcs_beam, valid_refs_beam, valid_hyps_beam = decode_split(model, valid_dataloader, sp, beam_size=BEAM_K, max_len=MAX_TARGET_LENGTH)
 
     for split_name, dataloader in splits:
         ppl = compute_perplexity(model, dataloader, PAD_IDX)
@@ -150,8 +150,8 @@ if __name__ == "__main__":
             greedy_hyps, greedy_refs = valid_hyps_greedy, valid_refs_greedy
             beam_hyps, beam_refs = valid_hyps_beam, valid_refs_beam
         else:
-            _, greedy_refs, greedy_hyps = decode_split(model, dataloader, sp, beam_size=1)
-            _, beam_refs, beam_hyps = decode_split(model, dataloader, sp, beam_size=BEAM_K)
+            _, greedy_refs, greedy_hyps = decode_split(model, dataloader, sp, beam_size=1, max_len=MAX_TARGET_LENGTH)
+            _, beam_refs, beam_hyps = decode_split(model, dataloader, sp, beam_size=BEAM_K, max_len=MAX_TARGET_LENGTH)
  
         bleu_g, rl_g, unk_g = score(greedy_hyps, greedy_refs)
         bleu_b, rl_b, unk_b = score(beam_hyps, beam_refs)

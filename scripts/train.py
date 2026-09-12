@@ -186,7 +186,7 @@ if __name__ == "__main__":
 
     for epoch in range(1, NUM_EPOCHS + 1):
         print(f"Epoch {epoch}/{NUM_EPOCHS}")
-        TF_RATIO = tf_ratio(epoch, NUM_EPOCHS, TF_START, TF_END)
+        TF_RATIO = tf_ratio(epoch)
         train_loss = train_step(train_dataloader, model, optimizer, criterion, DEVICE, PAD_IDX, TF_RATIO, CLIP)
         valid_loss = evaluation_step(valid_dataloader, model, criterion, DEVICE, PAD_IDX)
 
