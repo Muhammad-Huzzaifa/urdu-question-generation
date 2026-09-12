@@ -51,7 +51,7 @@ def decode_split(model, dataloader, sp, beam_size, max_len):
  
     with torch.no_grad():
         for src, tgt in dataloader:
-            src = src.to(device)
+            src = src.to(DEVICE)
             lengths = (src != PAD_IDX).sum(dim=0)
             decoded_tokens, _ = model.decode(src, lengths, max_len=max_len, beam_size=beam_size)
  
@@ -85,7 +85,7 @@ def compute_perplexity(model, dataloader, pad_idx):
  
     with torch.no_grad():
         for src, tgt in dataloader:
-            src, tgt = src.to(device), tgt.to(device)
+            src, tgt = src.to(DEVICE), tgt.to(DEVICE)
             lengths = (src != pad_idx).sum(dim=0)
  
             output = model(src, lengths, tgt, teacher_forcing_ratio=1.0)
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     )
 
     model = Seq2Seq(
-        device=device,
+        device=DEVICE,
         pad_idx=PAD_IDX,
         sos_idx=SOS_IDX,
         eos_idx=EOS_IDX,
@@ -129,8 +129,8 @@ if __name__ == "__main__":
         hidden_dim=HIDDEN_DIM,
         num_layers=NUM_LAYERS,
         dropout=DROPOUT,
-    ).to(device)
-    model.load_state_dict(torch.load(BEST_MODEL, map_location=device))
+    ).to(DEVICE)
+    model.load_state_dict(torch.load(BEST_MODEL, map_location=DEVICE))
     model.eval()
 
     splits = [
@@ -185,7 +185,7 @@ if __name__ == "__main__":
 
     FIGS_DIR.mkdir(parents=True, exist_ok=True)
     src0, _ = next(iter(valid_dataloader))
-    src0 = src0[:, 0:1].to(device)
+    src0 = src0[:, 0:1].to(DEVICE)
     lengths0 = (src0 != PAD_IDX).sum(dim=0)
     decoded_tokens0, attentions0 = model.decode(src0, lengths0, max_len=MAX_TARGET_LENGTH, beam_size=BEAM_K)
  

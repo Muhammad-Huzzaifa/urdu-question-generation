@@ -60,10 +60,6 @@ def tf_ratio(epoch):
     """
     return TF_START + (TF_END - TF_START) * (epoch / NUM_EPOCHS)
 
-# training
-BATCH_SIZE = 64
-LEARNING_RATE = 0.001
-NUM_EPOCHS = 10
 
 # tokenizer
 VOCAB_SIZE = 8000

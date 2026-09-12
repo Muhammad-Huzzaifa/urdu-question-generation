@@ -156,7 +156,7 @@ if __name__ == "__main__":
     )
 
     model = Seq2Seq(
-        device=device,
+        device=DEVICE,
         pad_idx=PAD_IDX,
         sos_idx=SOS_IDX,
         eos_idx=EOS_IDX,
@@ -165,7 +165,7 @@ if __name__ == "__main__":
         hidden_dim=HIDDEN_DIM,
         num_layers=NUM_LAYERS,
         dropout=DROPOUT,
-    ).to(device)
+    ).to(DEVICE)
 
     optimizer = Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     criterion = CrossEntropyLoss(ignore_index=PAD_IDX)
@@ -187,8 +187,8 @@ if __name__ == "__main__":
     for epoch in range(1, NUM_EPOCHS + 1):
         print(f"Epoch {epoch}/{NUM_EPOCHS}")
         TF_RATIO = tf_ratio(epoch, NUM_EPOCHS, TF_START, TF_END)
-        train_loss = train_step(train_dataloader, model, optimizer, criterion, device, PAD_IDX, TF_RATIO, CLIP)
-        valid_loss = evaluation_step(valid_dataloader, model, criterion, device, PAD_IDX)
+        train_loss = train_step(train_dataloader, model, optimizer, criterion, DEVICE, PAD_IDX, TF_RATIO, CLIP)
+        valid_loss = evaluation_step(valid_dataloader, model, criterion, DEVICE, PAD_IDX)
 
         scheduler.step(valid_loss)
 
