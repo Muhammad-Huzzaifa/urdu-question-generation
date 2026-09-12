@@ -1,7 +1,5 @@
 from pathlib import Path
-
 import torch
-
 
 # dirs
 ROOT_DIR = Path(__file__).parent
@@ -21,7 +19,6 @@ BEST_MODEL = CHECKPOINT_DIR / "best_model.pt"
 RESULTS_DIR = ROOT_DIR / "results"
 FIGS_DIR = RESULTS_DIR / "figures"
 
-
 # data & prep
 DATASET_NAME = "uqa/UQA"
 WIKI_DATA_NAME = "uqa/Wiki-UQA"
@@ -33,7 +30,6 @@ ANS_OPEN = "<ans>"
 ANS_CLOSE = "</ans>"
 PAD_TOKEN, UNK_TOKEN, SOS_TOKEN, EOS_TOKEN = "<pad>", "<unk>", "<s>", "</s>"
 SENT_DELIMS = "\u06D4\u061F!"
-
 
 # model
 BATCH_SIZE = 64
@@ -64,6 +60,10 @@ def tf_ratio(epoch):
     """
     return TF_START + (TF_END - TF_START) * (epoch / NUM_EPOCHS)
 
+# training
+BATCH_SIZE = 64
+LEARNING_RATE = 0.001
+NUM_EPOCHS = 10
 
 # tokenizer
 VOCAB_SIZE = 8000
@@ -75,5 +75,4 @@ EOS_IDX = 3
 
 
 # device
-import torch
-device = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

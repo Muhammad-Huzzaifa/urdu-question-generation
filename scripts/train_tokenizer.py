@@ -38,7 +38,10 @@ if __name__ == "__main__":
         model_type="unigram",
         character_coverage=1.0,
         user_defined_symbols=[ANS_OPEN, ANS_CLOSE],
-        pad_id=0, unk_id=1, bos_id=2, eos_id=3,
+        pad_id=PAD_IDX,
+        unk_id=UNK_IDX,
+        bos_id=SOS_IDX,
+        eos_id=EOS_IDX,
     )
 
     sp = spm.SentencePieceProcessor(model_file=str(TOKENIZER_MODEL))
